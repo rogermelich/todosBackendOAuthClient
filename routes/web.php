@@ -22,37 +22,44 @@ Route::group(['middleware' => 'auth'], function () {
 
     //Please do not remove this if you want adminlte:route and adminlte:link commands to works correctly.
     #adminlte_routes
-    Route::get('task', 'TaskController@index')->name('task');
 
-    Route::get('tasks', 'TasksController@index')->name('tasks');
+    Route::get('tasks', 'TaskController@index')->name('tasks');
 
+});
+Route::get('/redirect', function () {
+    $query = http_build_query([
 
-    Route::get('/redirect', function (){
-        $query = http_build_query([
+        'client_id' => '1',
+        'redirect_uri' => 'http://oauthclient.dev:8081/auth/callback',
+        'response_type' => 'code',
+        'scope' => '',
+    ]);
 
+    return redirect('http://localhost:8080/oauth/authorize?' . $query);
+});
+
+Route::get('/auth/callback', function () {
+    $http = new GuzzleHttp\Client;
+    $response = $http->post('http://localhost:8080/oauth/token', [
+        'form_params' => [
+            'grant_type' => 'authorization_code',
             'client_id' => '1',
-            'redirect_uri' => 'http://localhost:8082/auth/callback',
-            'response_type' => 'code',
-            'scope' => '',
-        ]);
+            'client_secret' => 'LKeYe2WaECURThpxf9hewz4dcUHzpc8qDguBA3G0',
+            'redirect_uri' => 'http://oauthclient.dev:8081/auth/callback',
+            'code' => Request::input('code'),
+        ],
+    ]);
 
-        return redirect('http://localhost:8081/oauth/authorize?'.$query);
-    });
+    $json = json_decode((string)$response->getBody(), true);
 
-    Route::get('/auth/callback', function (Request $request) {
-        $http = new GuzzleHttp\Client;
+    $access_token = $json["access_token"];
 
-        $response = $http->post('http://localhost:8081/oauth/token', [
-            'form_params' => [
-                'grant_type' => 'authorization_code',
-                'client_id' => '1',
-                'client_secret' => 'LKeYe2WaECURThpxf9hewz4dcUHzpc8qDguBA3G0',
-                'redirect_uri' => 'http://localhost:8082/auth/callback',
-                'code' => $request->code,
-            ],
-        ]);
-
-        return json_decode((string) $response->getBody(), true);
-    });
-
+    $response2 = $http->get('http://localhost:8081/api/v1/task', [
+        'headers' => [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Authorization' => 'Bearer ' . $access_token
+        ],
+    ]);
+    $json2 = json_decode((string) $response2->getBody(), true);
+    dd($json2);
 });
